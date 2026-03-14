@@ -1,5 +1,6 @@
 import { Recipient, User, Vault } from '../models';
 import { sendReleaseEmail } from './emailService';
+import { decryptVaultData } from './encryptionService';
 
 export const releaseVaultsForUser = async (user: User) => {
   console.log(`Looking for vaults for user ${user.email}`);
@@ -35,6 +36,15 @@ export const releaseVaultsForUser = async (user: User) => {
   const ownerName = user.full_name || user.email;
 
   for (const vault of vaults) {
+    let decryptedData: string;
+
+    try {
+      decryptedData = decryptVaultData(vault.encrypted_data);
+    } catch (error) {
+      console.error(`Failed to decrypt vault ${vault.id}:`, error);
+      continue;
+    }
+
     for (const recipient of recipients) {
       console.log(`Sending release email to ${recipient.email}`);
 
@@ -42,7 +52,7 @@ export const releaseVaultsForUser = async (user: User) => {
         recipient.email,
         recipient.name,
         ownerName,
-        vault.encrypted_data
+        decryptedData
       );
 
       recipient.notification_sent = true;

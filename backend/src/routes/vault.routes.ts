@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 import { VaultController } from '../controllers/vaultController';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -7,52 +7,55 @@ import { auditLog } from '../middleware/audit';
 
 const router = Router();
 
-// Все маршруты требуют аутентификации
 router.use(authenticate);
 
-// Создание сейфа
 router.post(
   '/',
   [
-    body('encrypted_data').notEmpty(),
+    body('encrypted_data').isString().notEmpty(),
     body('metadata').optional(),
     validate,
-    auditLog('vault_create', 'vault')
+    auditLog('vault_create', 'vault', (_req, _res, body) => body?.vault?.id),
   ],
   VaultController.createVault
 );
 
-// Получение всех сейфов
 router.get(
   '/',
-  auditLog('vaults_list', 'vault'),
+  auditLog('vault_list', 'vault'),
   VaultController.getVaults
 );
 
-// Получение конкретного сейфа
 router.get(
   '/:id',
-  auditLog('vault_view', 'vault', (req) => req.params.id),
-  VaultController.getVault
+  [
+    param('id').isUUID(),
+    validate,
+    auditLog('vault_get', 'vault', (req) => req.params.id),
+  ],
+  VaultController.getVaultById
 );
 
-// Обновление сейфа
 router.put(
   '/:id',
   [
-    body('encrypted_data').optional().notEmpty(),
+    param('id').isUUID(),
+    body('encrypted_data').optional().isString(),
     body('metadata').optional(),
     body('is_active').optional().isBoolean(),
     validate,
-    auditLog('vault_update', 'vault', (req) => req.params.id)
+    auditLog('vault_update', 'vault', (req) => req.params.id),
   ],
   VaultController.updateVault
 );
 
-// Удаление сейфа
 router.delete(
   '/:id',
-  auditLog('vault_delete', 'vault', (req) => req.params.id),
+  [
+    param('id').isUUID(),
+    validate,
+    auditLog('vault_delete', 'vault', (req) => req.params.id),
+  ],
   VaultController.deleteVault
 );
 

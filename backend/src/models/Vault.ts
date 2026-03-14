@@ -9,7 +9,7 @@ interface VaultAttributes {
   metadata?: any;
   is_active: boolean;
   release_triggered: boolean;
-  release_triggered_at?: Date;
+  release_triggered_at?: Date | null;
 }
 
 interface VaultCreationAttributes extends Optional<VaultAttributes, 
@@ -24,7 +24,7 @@ class Vault extends Model<VaultAttributes, VaultCreationAttributes>
   public metadata?: any;
   public is_active!: boolean;
   public release_triggered!: boolean;
-  public release_triggered_at?: Date;
+  public release_triggered_at?: Date | null;
   
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
