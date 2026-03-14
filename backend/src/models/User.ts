@@ -12,12 +12,21 @@ interface UserAttributes {
   checkin_interval_days: number;
   last_checkin?: Date;
   next_checkin_due?: Date;
+  reminder_sent_at?: Date | null;
   created_at?: Date;
   updated_at?: Date;
 }
 
 interface UserCreationAttributes
-  extends Optional<UserAttributes, 'id' | 'is_active' | 'checkin_interval_days'> {}
+  extends Optional<
+    UserAttributes,
+    | 'id'
+    | 'is_active'
+    | 'checkin_interval_days'
+    | 'last_checkin'
+    | 'next_checkin_due'
+    | 'reminder_sent_at'
+  > {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: string;
@@ -30,6 +39,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   public checkin_interval_days!: number;
   public last_checkin?: Date;
   public next_checkin_due?: Date;
+  public reminder_sent_at?: Date | null;
 
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
@@ -86,6 +96,11 @@ User.init(
     next_checkin_due: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    reminder_sent_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
     },
   },
   {

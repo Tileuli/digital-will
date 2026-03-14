@@ -28,6 +28,41 @@ const createTransporter = () => {
   });
 };
 
+export const sendCheckinReminderEmail = async (
+  to: string,
+  ownerName: string,
+  nextCheckinDue: Date
+) => {
+  const transporter = createTransporter();
+
+  if (!transporter) {
+    console.warn(`SMTP is not configured. Reminder email for ${to} was skipped.`);
+    return;
+  }
+
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject: 'Digital Will: Please confirm you are okay',
+    text: `
+Hello ${ownerName},
+
+This is a reminder from the Digital Will service.
+
+Your next check-in is due at:
+${nextCheckinDue.toISOString()}
+
+Please log in to the application and confirm that you are okay.
+
+If you do not check in before the deadline, the system may start the conditional release process.
+
+Digital Will Service
+    `.trim(),
+  });
+
+  console.log('Reminder email sent successfully:', info.messageId);
+};
+
 export const sendReleaseEmail = async (
   to: string,
   recipientName: string,
@@ -61,5 +96,5 @@ Digital Will Service
     `.trim(),
   });
 
-  console.log('Email sent successfully:', info.messageId);
+  console.log('Release email sent successfully:', info.messageId);
 };

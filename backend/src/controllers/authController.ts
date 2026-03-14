@@ -13,7 +13,7 @@ const generateToken = (user: User) => {
   return jwt.sign(
     { id: user.id, email: user.email },
     process.env.JWT_SECRET as string,
-    { expiresIn: '7d' }
+    { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'] }
   );
 };
 
@@ -47,18 +47,19 @@ export class AuthController {
         checkin_interval_days: interval,
         last_checkin: now,
         next_checkin_due: nextCheckin,
+        reminder_sent_at: null,
       });
 
       const token = generateToken(user);
 
-      res.status(201).json({
+      return res.status(201).json({
         message: 'User registered successfully',
         token,
         user: buildSafeUser(user),
       });
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ message: 'Server error' });
     }
   }
 
@@ -87,19 +88,20 @@ export class AuthController {
 
         user.last_checkin = now;
         user.next_checkin_due = nextCheckin;
+        user.reminder_sent_at = null;
         await user.save();
       }
 
       const token = generateToken(user);
 
-      res.json({
+      return res.json({
         message: 'Login successful',
         token,
         user: buildSafeUser(user),
       });
     } catch (error) {
       console.error('Login error:', error);
-      res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ message: 'Server error' });
     }
   }
 
@@ -111,14 +113,14 @@ export class AuthController {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      res.json({ user: buildSafeUser(user) });
+      return res.json({ user: buildSafeUser(user) });
     } catch (error) {
       console.error('Get current user error:', error);
-      res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ message: 'Server error' });
     }
   }
 
   static async logout(req: Request, res: Response) {
-    res.json({ message: 'Logout successful' });
+    return res.json({ message: 'Logout successful' });
   }
 }

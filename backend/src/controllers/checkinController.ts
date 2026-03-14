@@ -26,12 +26,13 @@ export class CheckinController {
 
       user.last_checkin = now;
       user.next_checkin_due = nextCheckin;
+      user.reminder_sent_at = null;
       await user.save();
 
       const userData = user.get({ plain: true }) as any;
       delete userData.password_hash;
 
-      res.json({
+      return res.json({
         message: 'Check-in successful',
         checkin: {
           id: checkinLog.id,
@@ -43,7 +44,7 @@ export class CheckinController {
       });
     } catch (error) {
       console.error('Check-in error:', error);
-      res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ message: 'Server error' });
     }
   }
 
@@ -55,17 +56,23 @@ export class CheckinController {
         limit: 50,
       });
 
-      res.json({ checkins });
+      return res.json({ checkins });
     } catch (error) {
       console.error('Get checkin history error:', error);
-      res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ message: 'Server error' });
     }
   }
 
   static async getCheckinStatus(req: Request, res: Response) {
     try {
       const user = await User.findByPk(req.user.id, {
-        attributes: ['id', 'last_checkin', 'next_checkin_due', 'checkin_interval_days'],
+        attributes: [
+          'id',
+          'last_checkin',
+          'next_checkin_due',
+          'checkin_interval_days',
+          'reminder_sent_at',
+        ],
       });
 
       if (!user) {
@@ -79,16 +86,17 @@ export class CheckinController {
 
       const isOverdue = user.next_checkin_due ? new Date() > user.next_checkin_due : false;
 
-      res.json({
+      return res.json({
         last_checkin: user.last_checkin,
         last_checkin_log: lastCheckin,
         next_checkin_due: user.next_checkin_due,
         checkin_interval_days: user.checkin_interval_days,
+        reminder_sent_at: user.reminder_sent_at,
         is_overdue: isOverdue,
       });
     } catch (error) {
       console.error('Get checkin status error:', error);
-      res.status(500).json({ message: 'Server error' });
+      return res.status(500).json({ message: 'Server error' });
     }
   }
 }
