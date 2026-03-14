@@ -9,6 +9,7 @@ export interface LoginData {
 export interface RegisterData extends LoginData {
   full_name?: string;
   phone?: string;
+  checkin_interval_days?: number;
 }
 
 class AuthService {
@@ -28,6 +29,13 @@ class AuthService {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response.data;
+  }
+
+  async fetchCurrentUser(): Promise<User> {
+    const response = await api.get('/auth/me');
+    const user = response.data.user;
+    localStorage.setItem('user', JSON.stringify(user));
+    return user;
   }
 
   logout(): void {
