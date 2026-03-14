@@ -3,46 +3,58 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models';
 
+const buildSafeUser = (user: User) => {
+  const userData = user.get({ plain: true }) as any;
+  delete userData.password_hash;
+  return userData;
+};
+
+const generateToken = (user: User) => {
+  return jwt.sign(
+    { id: user.id, email: user.email },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '7d' }
+  );
+};
+
 export class AuthController {
-  // Регистрация
   static async register(req: Request, res: Response) {
     try {
-      const { email, password, full_name, phone } = req.body;
+      const { email, password, full_name, phone, checkin_interval_days } = req.body;
 
-      // Проверка существующего пользователя
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         return res.status(400).json({ message: 'User already exists' });
       }
 
-      // Хэширование пароля
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Создание пользователя
+      const interval =
+        Number.isInteger(checkin_interval_days) && checkin_interval_days > 0
+          ? checkin_interval_days
+          : 7;
+
+      const now = new Date();
+      const nextCheckin = new Date(now);
+      nextCheckin.setDate(nextCheckin.getDate() + interval);
+
       const user = await User.create({
         email,
         password_hash: hashedPassword,
         full_name,
         phone,
         is_active: true,
+        checkin_interval_days: interval,
+        last_checkin: now,
+        next_checkin_due: nextCheckin,
       });
 
-      // Преобразуем в объект и удаляем пароль
-      const userData = user.get({ plain: true });
-      const userResponse: any = { ...userData };
-      delete userResponse.password_hash;
-
-      // Генерация токена
-      const token = jwt.sign(
-        { id: user.id, email: user.email },
-        process.env.JWT_SECRET as string,
-        { expiresIn: '7d' } // Фиксированное значение
-      );
+      const token = generateToken(user);
 
       res.status(201).json({
         message: 'User registered successfully',
         token,
-        user: userResponse,
+        user: buildSafeUser(user),
       });
     } catch (error) {
       console.error('Registration error:', error);
@@ -50,48 +62,40 @@ export class AuthController {
     }
   }
 
-  // Вход
   static async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
 
-      // Поиск пользователя
       const user = await User.findOne({ where: { email } });
       if (!user) {
-        return res.status(401).json({ message: 'Invalid email' });
+        return res.status(401).json({ message: 'Invalid email or password' });
       }
 
-      // Проверка пароля
       const isValidPassword = await bcrypt.compare(password, user.password_hash);
       if (!isValidPassword) {
-        return res.status(401).json({ message: 'Invalid password' });
+        return res.status(401).json({ message: 'Invalid email or password' });
       }
 
-      // Проверка активности
       if (!user.is_active) {
         return res.status(403).json({ message: 'Account is deactivated' });
       }
 
-      // Обновление времени последнего входа
-      user.last_checkin = new Date();
-      await user.save();
+      if (!user.last_checkin || !user.next_checkin_due) {
+        const now = new Date();
+        const nextCheckin = new Date(now);
+        nextCheckin.setDate(nextCheckin.getDate() + user.checkin_interval_days);
 
-      // Преобразуем в объект и удаляем пароль
-      const userData = user.get({ plain: true });
-      const userResponse: any = { ...userData };
-      delete userResponse.password_hash;
+        user.last_checkin = now;
+        user.next_checkin_due = nextCheckin;
+        await user.save();
+      }
 
-      // Генерация токена
-      const token = jwt.sign(
-        { id: user.id, email: user.email },
-        process.env.JWT_SECRET as string,
-        { expiresIn: '7d' }
-      );
+      const token = generateToken(user);
 
       res.json({
         message: 'Login successful',
         token,
-        user: userResponse,
+        user: buildSafeUser(user),
       });
     } catch (error) {
       console.error('Login error:', error);
@@ -99,7 +103,6 @@ export class AuthController {
     }
   }
 
-  // Получение текущего пользователя
   static async getCurrentUser(req: Request, res: Response) {
     try {
       const user = await User.findByPk(req.user.id);
@@ -108,19 +111,13 @@ export class AuthController {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Преобразуем в объект и удаляем пароль
-      const userData = user.get({ plain: true });
-      const userResponse: any = { ...userData };
-      delete userResponse.password_hash;
-
-      res.json({ user: userResponse });
+      res.json({ user: buildSafeUser(user) });
     } catch (error) {
       console.error('Get current user error:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }
 
-  // Выход
   static async logout(req: Request, res: Response) {
     res.json({ message: 'Logout successful' });
   }

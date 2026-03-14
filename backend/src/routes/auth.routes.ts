@@ -7,7 +7,6 @@ import { auditLog } from '../middleware/audit';
 
 const router = Router();
 
-// Регистрация
 router.post(
   '/register',
   [
@@ -16,24 +15,22 @@ router.post(
     body('full_name').optional().trim(),
     body('phone').optional().trim(),
     validate,
-    auditLog('user_register', 'user', (req) => req.body.email)
+    auditLog('user_register', 'user')
   ],
   AuthController.register
 );
 
-// Вход
 router.post(
   '/login',
   [
     body('email').isEmail().normalizeEmail(),
     body('password').notEmpty(),
     validate,
-    auditLog('user_login', 'user', (req) => req.body.email)
+    auditLog('user_login', 'user')
   ],
   AuthController.login
 );
 
-// Получение текущего пользователя
 router.get(
   '/me',
   authenticate,
@@ -41,7 +38,6 @@ router.get(
   AuthController.getCurrentUser
 );
 
-// Выход
 router.post(
   '/logout',
   authenticate,

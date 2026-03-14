@@ -9,13 +9,15 @@ interface UserAttributes {
   full_name?: string;
   phone?: string;
   is_active: boolean;
+  checkin_interval_days: number;
   last_checkin?: Date;
   next_checkin_due?: Date;
   created_at?: Date;
   updated_at?: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'is_active'> {}
+interface UserCreationAttributes
+  extends Optional<UserAttributes, 'id' | 'is_active' | 'checkin_interval_days'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: string;
@@ -25,9 +27,10 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   public full_name?: string;
   public phone?: string;
   public is_active!: boolean;
+  public checkin_interval_days!: number;
   public last_checkin?: Date;
   public next_checkin_due?: Date;
-  
+
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -66,6 +69,15 @@ User.init(
     is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
+    },
+    checkin_interval_days: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 7,
+      validate: {
+        min: 1,
+        max: 365,
+      },
     },
     last_checkin: {
       type: DataTypes.DATE,

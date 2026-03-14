@@ -9,7 +9,6 @@ const router = Router();
 
 router.use(authenticate);
 
-// Добавление получателя
 router.post(
   '/',
   [
@@ -18,19 +17,17 @@ router.post(
     body('public_key').optional(),
     body('relationship').optional().trim(),
     validate,
-    auditLog('recipient_add', 'recipient', (req) => req.body.email)
+    auditLog('recipient_add', 'recipient', (_req, _res, body) => body?.recipient?.id)
   ],
   RecipientController.addRecipient
 );
 
-// Получение всех получателей
 router.get(
   '/',
   auditLog('recipients_list', 'recipient'),
   RecipientController.getRecipients
 );
 
-// Удаление получателя
 router.delete(
   '/:id',
   auditLog('recipient_delete', 'recipient', (req) => req.params.id),

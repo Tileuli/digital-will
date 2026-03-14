@@ -10,29 +10,42 @@ declare global {
   }
 }
 
+interface JwtPayload {
+  id: string;
+  email: string;
+}
+
 export const authenticate = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const authHeader = req.header('Authorization');
 
-    if (!token) {
-      throw new Error();
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Please authenticate' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+    const token = authHeader.replace('Bearer ', '').trim();
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
+      console.error('JWT_SECRET is not set');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
+    const decoded = jwt.verify(token, secret) as JwtPayload;
     const user = await User.findByPk(decoded.id);
 
-    if (!user) {
-      throw new Error();
+    if (!user || !user.is_active) {
+      return res.status(401).json({ message: 'Please authenticate' });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({ message: 'Please authenticate' });
+    return res.status(401).json({ message: 'Please authenticate' });
   }
 };
 
