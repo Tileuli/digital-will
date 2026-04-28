@@ -7,7 +7,11 @@ console.log('[api] baseURL =', API_BASE_URL);
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  // Phone-side Argon2id + RSA-2048 keygen can take ~3-10s before the request
+  // even starts; combined with Railway cold-start latency, 15s was too tight
+  // and timed out *after* the server had already created the account, leaving
+  // the user stuck with "verification record not found" on retry.
+  timeout: 60000,
 });
 
 api.interceptors.request.use(async (config) => {

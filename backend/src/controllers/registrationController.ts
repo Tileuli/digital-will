@@ -240,18 +240,25 @@ export class RegistrationController {
 
       const email = decoded.email;
 
+      // Check user existence first: covers the case where a previous /complete
+      // call succeeded server-side but the client timed out and is retrying.
+      // The verification row was already destroyed by the successful call, so
+      // looking it up first would mislead the user into "Start over" when in
+      // fact their account is created and they should just sign in.
+      const existing = await User.findOne({ where: { email } });
+      if (existing) {
+        await EmailVerification.destroy({ where: { email } });
+        return res.status(409).json({
+          message:
+            'An account with this email already exists. Please sign in with your password.',
+          account_exists: true,
+        });
+      }
+
       const verification = await EmailVerification.findOne({ where: { email } });
       if (!verification) {
         return res.status(401).json({
           message: 'Verification record not found. Start over.',
-        });
-      }
-
-      const existing = await User.findOne({ where: { email } });
-      if (existing) {
-        await verification.destroy();
-        return res.status(409).json({
-          message: 'An account with this email already exists.',
         });
       }
 
