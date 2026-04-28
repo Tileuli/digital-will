@@ -1,4 +1,30 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+
+const resendFrom = () =>
+  process.env.RESEND_FROM || 'Digital Will <onboarding@resend.dev>';
+
+const sendViaResend = async (
+  to: string,
+  subject: string,
+  text: string
+): Promise<void> => {
+  if (!resend) throw new Error('RESEND_API_KEY missing');
+  const { error } = await resend.emails.send({
+    from: resendFrom(),
+    to,
+    subject,
+    text,
+  });
+  if (error) {
+    console.error(`Resend send failed for ${to}:`, error);
+    throw new Error(error.message || 'Resend send failed');
+  }
+};
 
 const brevoSender = () => ({
   email:
@@ -62,10 +88,11 @@ const createSmtpTransporter = () => {
 
 /**
  * Single send path used by every helper below.
- * Prefers Brevo (HTTPS API — works on Railway/Vercel/Render where outbound
- * SMTP is often blocked). Falls back to nodemailer if only SMTP is configured.
- * If neither is configured we log a warning so dev flows that don't need real
- * email (e.g. local registration with the code printed to console) still work.
+ * Order of preference:
+ *   1. Resend — works on free tier without a custom domain (sender = onboarding@resend.dev),
+ *      but the recipient must be the email registered on the Resend account.
+ *   2. Brevo — HTTPS API, requires a verified domain with DKIM/DMARC. Use once you own a domain.
+ *   3. Nodemailer SMTP — local-dev fallback (Railway blocks outbound SMTP, so this won't work in prod).
  */
 const sendMail = async (
   to: string,
@@ -73,6 +100,11 @@ const sendMail = async (
   text: string,
   fallbackContext?: string
 ): Promise<void> => {
+  if (resend) {
+    await sendViaResend(to, subject, text);
+    return;
+  }
+
   if (process.env.BREVO_API_KEY) {
     await sendViaBrevo(to, subject, text);
     return;
