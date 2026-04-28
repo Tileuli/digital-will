@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://digital-will-production.up.railway.app/api/:path*"
+    }
+  ]
+}

@@ -62,7 +62,7 @@ export const deriveMasterKey = async (
     });
     return crypto.subtle.importKey(
       'raw',
-      raw,
+      new Uint8Array(raw),
       { name: 'AES-GCM', length: 256 },
       false,
       ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
