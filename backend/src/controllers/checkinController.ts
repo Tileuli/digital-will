@@ -27,6 +27,9 @@ export class CheckinController {
       user.last_checkin = now;
       user.next_checkin_due = nextCheckin;
       user.reminder_sent_at = null;
+      // Bump the voting round so any in-flight death-confirmation votes from
+      // trusted contacts are invalidated. This is the user proving they're alive.
+      user.voting_round_id = (user.voting_round_id || 0) + 1;
       await user.save();
 
       const userData = user.get({ plain: true }) as any;

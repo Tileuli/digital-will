@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+
+# Env files (defense in depth — each package also ignores these)
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Local-only working dirs
+.scratch/
+.claude/
+
+# Expo / React Native dev caches
+.expo/
+**/.expo/
+
+# Generated artifacts
+*.pdf

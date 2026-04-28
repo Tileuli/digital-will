@@ -26,12 +26,35 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url: string = error.config?.url || '';
+    const isAuthEndpoint =
+      url.includes('/auth/login') ||
+      url.includes('/auth/register/') ||
+      url.includes('/recovery/');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
+
+export const getErrorMessage = (err: any, fallback = 'Something went wrong'): string => {
+  const data = err?.response?.data;
+  if (data?.message) return data.message;
+  if (Array.isArray(data?.errors) && data.errors.length > 0) {
+    const e = data.errors[0];
+    const field = e.path || e.param;
+    const msg = e.msg || 'Invalid value';
+    if (field === 'password' && /length/i.test(msg)) {
+      return 'Password must be at least 8 characters.';
+    }
+    if (field === 'email') {
+      return 'Please enter a valid email address.';
+    }
+    return field ? `${msg} (${field})` : msg;
+  }
+  return err?.message || fallback;
+};
 
 export default api;

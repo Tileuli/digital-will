@@ -7,6 +7,18 @@ import authRoutes from './routes/auth.routes';
 import vaultRoutes from './routes/vault.routes';
 import recipientRoutes from './routes/recipient.routes';
 import checkinRoutes from './routes/checkin.routes';
+import invitationRoutes from './routes/invitation.routes';
+import claimRoutes from './routes/claim.routes';
+import auditRoutes from './routes/audit.routes';
+import recipientTestRoutes from './routes/recipientTest.routes';
+import recoveryRoutes from './routes/recovery.routes';
+import totpRoutes from './routes/totp.routes';
+import registrationRoutes from './routes/registration.routes';
+import kdfMigrationRoutes from './routes/kdfMigration.routes';
+import {
+  confirmerOwnerRouter,
+  confirmerPublicRouter,
+} from './routes/confirmer.routes';
 import { startInactivityChecker } from './services/inactivityService';
 
 dotenv.config();
@@ -21,8 +33,8 @@ app.use(cors({
       : process.env.FRONTEND_URL,
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -50,10 +62,20 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
+app.use('/api/auth/register', registrationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/vaults', vaultRoutes);
 app.use('/api/recipients', recipientRoutes);
 app.use('/api/checkin', checkinRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/recovery', recoveryRoutes);
+app.use('/api/2fa', totpRoutes);
+app.use('/api/kdf', kdfMigrationRoutes);
+app.use('/api/confirmers', confirmerOwnerRouter);
+app.use('/api/public/confirmer', confirmerPublicRouter);
+app.use('/api/public/invitations', invitationRoutes);
+app.use('/api/public/claim', claimRoutes);
+app.use('/api/public/recipient-test', recipientTestRoutes);
 
 app.get('/', (req, res) => {
   res.json({
@@ -64,6 +86,8 @@ app.get('/', (req, res) => {
       vaults: '/api/vaults',
       recipients: '/api/recipients',
       checkin: '/api/checkin',
+      invitations: '/api/public/invitations',
+      claim: '/api/public/claim',
       health: '/api/health',
     },
   });
@@ -96,7 +120,13 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connection established');
 
-    await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
+    const shouldReset = process.env.DB_RESET === 'true';
+    if (shouldReset) {
+      console.warn('⚠️  DB_RESET=true — dropping and recreating all tables.');
+      await sequelize.sync({ force: true });
+    } else {
+      await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
+    }
     console.log('✅ Database synchronized');
 
     startInactivityChecker();

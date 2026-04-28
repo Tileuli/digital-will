@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Digital Will",
+    "slug": "digital-will-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.digitalwill.mobile"
+    },
+    "android": {
+      "package": "com.digitalwill.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "extra": {
+      "apiBaseUrl": "http://192.168.10.8:5000/api"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow Digital Will to use Face ID to unlock your encrypted vault on this device."
+        }
+      ]
+    ]
+  }
+}

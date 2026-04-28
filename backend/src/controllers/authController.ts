@@ -1,11 +1,15 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { authenticator } from 'otplib';
 import { User } from '../models';
+
+const TOTP_CHALLENGE_TTL = '5m';
 
 const buildSafeUser = (user: User) => {
   const userData = user.get({ plain: true }) as any;
   delete userData.password_hash;
+  delete userData.totp_secret;
   return userData;
 };
 
@@ -17,52 +21,25 @@ const generateToken = (user: User) => {
   );
 };
 
-export class AuthController {
-  static async register(req: Request, res: Response) {
-    try {
-      const { email, password, full_name, phone, checkin_interval_days } = req.body;
+const generateTotpChallenge = (user: User) => {
+  return jwt.sign(
+    { id: user.id, totp_pending: true },
+    process.env.JWT_SECRET as string,
+    { expiresIn: TOTP_CHALLENGE_TTL }
+  );
+};
 
-      const existingUser = await User.findOne({ where: { email } });
-      if (existingUser) {
-        return res.status(400).json({ message: 'User already exists' });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const interval =
-        Number.isInteger(checkin_interval_days) && checkin_interval_days > 0
-          ? checkin_interval_days
-          : 7;
-
-      const now = new Date();
-      const nextCheckin = new Date(now);
-      nextCheckin.setDate(nextCheckin.getDate() + interval);
-
-      const user = await User.create({
-        email,
-        password_hash: hashedPassword,
-        full_name,
-        phone,
-        is_active: true,
-        checkin_interval_days: interval,
-        last_checkin: now,
-        next_checkin_due: nextCheckin,
-        reminder_sent_at: null,
-      });
-
-      const token = generateToken(user);
-
-      return res.status(201).json({
-        message: 'User registered successfully',
-        token,
-        user: buildSafeUser(user),
-      });
-    } catch (error) {
-      console.error('Registration error:', error);
-      return res.status(500).json({ message: 'Server error' });
-    }
+const verifyTotpChallenge = (token: string): { id: string } | null => {
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+    if (!decoded?.totp_pending || !decoded?.id) return null;
+    return { id: decoded.id };
+  } catch {
+    return null;
   }
+};
 
+export class AuthController {
   static async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
@@ -79,6 +56,15 @@ export class AuthController {
 
       if (!user.is_active) {
         return res.status(403).json({ message: 'Account is deactivated' });
+      }
+
+      if (user.totp_enabled && user.totp_secret) {
+        const totp_challenge = generateTotpChallenge(user);
+        return res.json({
+          message: 'TOTP verification required',
+          totp_required: true,
+          totp_challenge,
+        });
       }
 
       if (!user.last_checkin || !user.next_checkin_due) {
@@ -101,6 +87,55 @@ export class AuthController {
       });
     } catch (error) {
       console.error('Login error:', error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  }
+
+  static async loginVerifyTotp(req: Request, res: Response) {
+    try {
+      const { totp_challenge, code } = req.body as {
+        totp_challenge?: string;
+        code?: string;
+      };
+      if (!totp_challenge || !code) {
+        return res
+          .status(400)
+          .json({ message: 'totp_challenge and code are required' });
+      }
+
+      const decoded = verifyTotpChallenge(totp_challenge);
+      if (!decoded) {
+        return res.status(401).json({ message: 'Challenge expired or invalid' });
+      }
+
+      const user = await User.findByPk(decoded.id);
+      if (!user || !user.totp_enabled || !user.totp_secret) {
+        return res.status(401).json({ message: 'Invalid challenge' });
+      }
+
+      const valid = authenticator.check(code.trim(), user.totp_secret);
+      if (!valid) {
+        return res.status(401).json({ message: 'Invalid verification code' });
+      }
+
+      if (!user.last_checkin || !user.next_checkin_due) {
+        const now = new Date();
+        const nextCheckin = new Date(now);
+        nextCheckin.setDate(nextCheckin.getDate() + user.checkin_interval_days);
+        user.last_checkin = now;
+        user.next_checkin_due = nextCheckin;
+        user.reminder_sent_at = null;
+        await user.save();
+      }
+
+      const token = generateToken(user);
+      return res.json({
+        message: 'Login successful',
+        token,
+        user: buildSafeUser(user),
+      });
+    } catch (error) {
+      console.error('TOTP verify error:', error);
       return res.status(500).json({ message: 'Server error' });
     }
   }

@@ -4,31 +4,32 @@ import { AuthController } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { auditLog } from '../middleware/audit';
+import { loginLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
 router.post(
-  '/register',
-  [
-    body('email').isEmail().normalizeEmail(),
-    body('password').isLength({ min: 6 }),
-    body('full_name').optional().trim(),
-    body('phone').optional().trim(),
-    validate,
-    auditLog('user_register', 'user')
-  ],
-  AuthController.register
-);
-
-router.post(
   '/login',
+  loginLimiter,
   [
     body('email').isEmail().normalizeEmail(),
     body('password').notEmpty(),
     validate,
-    auditLog('user_login', 'user')
+    auditLog('user_login', 'user'),
   ],
   AuthController.login
+);
+
+router.post(
+  '/login/totp',
+  loginLimiter,
+  [
+    body('totp_challenge').isString().notEmpty(),
+    body('code').isString().notEmpty(),
+    validate,
+    auditLog('user_login_totp', 'user'),
+  ],
+  AuthController.loginVerifyTotp
 );
 
 router.get(

@@ -6,26 +6,30 @@ interface VaultAttributes {
   id: string;
   user_id: string;
   encrypted_data: string;
+  wrapped_key_owner: string;
   metadata?: any;
   is_active: boolean;
   release_triggered: boolean;
   release_triggered_at?: Date | null;
+  release_at?: Date | null;
 }
 
-interface VaultCreationAttributes extends Optional<VaultAttributes, 
-  'id' | 'is_active' | 'release_triggered'> {}
+interface VaultCreationAttributes extends Optional<VaultAttributes,
+  'id' | 'is_active' | 'release_triggered' | 'release_at'> {}
 
-class Vault extends Model<VaultAttributes, VaultCreationAttributes> 
+class Vault extends Model<VaultAttributes, VaultCreationAttributes>
   implements VaultAttributes {
-  
+
   public id!: string;
   public user_id!: string;
   public encrypted_data!: string;
+  public wrapped_key_owner!: string;
   public metadata?: any;
   public is_active!: boolean;
   public release_triggered!: boolean;
   public release_triggered_at?: Date | null;
-  
+  public release_at?: Date | null;
+
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -49,6 +53,10 @@ Vault.init(
       type: DataTypes.TEXT,
       allowNull: false,
     },
+    wrapped_key_owner: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
     metadata: {
       type: DataTypes.JSONB,
       allowNull: true,
@@ -64,6 +72,11 @@ Vault.init(
     release_triggered_at: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    release_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
     },
   },
   {
