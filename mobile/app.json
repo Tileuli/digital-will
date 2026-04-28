@@ -17,7 +17,7 @@
       }
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.10.8:5000/api"
+      "apiBaseUrl": "https://digital-will-production.up.railway.app/api"
     },
     "plugins": [
       "expo-asset",
