@@ -2,12 +2,16 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { storage } from './storage';
 
+console.log('[api] baseURL =', API_BASE_URL);
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
 });
 
 api.interceptors.request.use(async (config) => {
+  console.log('[api] →', config.method?.toUpperCase(), (config.baseURL || '') + (config.url || ''));
   const token = await storage.getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -30,9 +34,23 @@ export const onUnauthorized = (fn: UnauthorizedHandler) => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('[api] ←', response.status, response.config.url);
+    return response;
+  },
   async (error) => {
     const url: string = error?.config?.url || '';
+    console.log(
+      '[api] ✗',
+      error?.config?.method?.toUpperCase(),
+      url,
+      '— status:',
+      error?.response?.status,
+      '— message:',
+      error?.message,
+      '— code:',
+      error?.code,
+    );
     const isAuthEndpoint =
       url.includes('/auth/login') ||
       url.includes('/auth/register/') ||
