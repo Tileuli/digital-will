@@ -46,12 +46,18 @@ const createSmtpTransporter = () => {
 
   if (!host || !user || !pass) return null;
 
+  // Railway containers don't have IPv6 connectivity. Without `family: 4`, Node
+  // resolves smtp.gmail.com to an AAAA record first and fails with ENETUNREACH
+  // before falling back to IPv4. The option is accepted at runtime but not in
+  // @types/nodemailer's TransportOptions, hence the cast.
   return nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
     auth: { user, pass },
-  });
+    family: 4,
+    connectionTimeout: 20_000,
+  } as any);
 };
 
 /**
