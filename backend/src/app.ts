@@ -26,6 +26,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Railway / Render / any reverse-proxy host: trust the first proxy hop so
+// req.ip reflects the real client (X-Forwarded-For), not the proxy.
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin:
     process.env.NODE_ENV === 'development'

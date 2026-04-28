@@ -1,4 +1,5 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import type { Request } from 'express';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -16,9 +17,10 @@ export const loginLimiter = rateLimit({
   max: isDev ? 100 : 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
+  keyGenerator: (req: Request) => {
     const email = (req.body?.email || '').toString().toLowerCase().trim();
-    return `${req.ip}:${email}`;
+    // ipKeyGenerator normalises IPv6 so /64 prefixes count as one key.
+    return `${ipKeyGenerator(req.ip || '')}:${email}`;
   },
   message: message(
     'Too many login attempts. Please wait 15 minutes and try again.'
