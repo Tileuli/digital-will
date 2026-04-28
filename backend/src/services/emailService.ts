@@ -1,14 +1,42 @@
 import nodemailer from 'nodemailer';
-import { Resend } from 'resend';
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const brevoSender = () => ({
+  email:
+    process.env.BREVO_FROM_EMAIL ||
+    process.env.SMTP_FROM ||
+    'no-reply@example.com',
+  name: process.env.BREVO_FROM_NAME || 'Digital Will',
+});
 
-const fromAddress = () =>
-  process.env.RESEND_FROM ||
-  process.env.SMTP_FROM ||
-  'Digital Will <onboarding@resend.dev>';
+const sendViaBrevo = async (
+  to: string,
+  subject: string,
+  text: string
+): Promise<void> => {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('BREVO_API_KEY missing');
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'api-key': apiKey,
+    },
+    body: JSON.stringify({
+      sender: brevoSender(),
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`Brevo send failed for ${to} (${res.status}):`, body);
+    throw new Error(`Brevo send failed (${res.status})`);
+  }
+};
 
 const createSmtpTransporter = () => {
   const host = process.env.SMTP_HOST;
@@ -28,7 +56,7 @@ const createSmtpTransporter = () => {
 
 /**
  * Single send path used by every helper below.
- * Prefers Resend (HTTPS API — works on Railway/Vercel/Render where outbound
+ * Prefers Brevo (HTTPS API — works on Railway/Vercel/Render where outbound
  * SMTP is often blocked). Falls back to nodemailer if only SMTP is configured.
  * If neither is configured we log a warning so dev flows that don't need real
  * email (e.g. local registration with the code printed to console) still work.
@@ -39,23 +67,20 @@ const sendMail = async (
   text: string,
   fallbackContext?: string
 ): Promise<void> => {
-  if (resend) {
-    const { error } = await resend.emails.send({
-      from: fromAddress(),
-      to,
-      subject,
-      text,
-    });
-    if (error) {
-      console.error(`Resend send failed for ${to}:`, error);
-      throw new Error(error.message || 'Resend send failed');
-    }
+  if (process.env.BREVO_API_KEY) {
+    await sendViaBrevo(to, subject, text);
     return;
   }
 
   const smtp = createSmtpTransporter();
   if (smtp) {
-    await smtp.sendMail({ from: fromAddress(), to, subject, text });
+    const { email, name } = brevoSender();
+    await smtp.sendMail({
+      from: `${name} <${email}>`,
+      to,
+      subject,
+      text,
+    });
     return;
   }
 
