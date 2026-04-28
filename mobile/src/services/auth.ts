@@ -77,27 +77,25 @@ class AuthService {
       kdf_algorithm,
     });
 
-    let recoveryCodes: string[] = [];
-
     if (response.data.token) {
       await storage.setToken(response.data.token);
       await storage.setUser(response.data.user);
       setSessionKeys({ masterKey, privateKey: keyPair.privateKey });
 
-      try {
-        const generated = await generateAndWrapRecoveryCodes(
-          keyPair.privateKey,
-          10,
-          kdf_algorithm
-        );
-        await uploadRecoveryCodes(generated.payload);
-        recoveryCodes = generated.rawCodes;
-      } catch (err) {
-        console.warn('Failed to generate recovery codes during register:', err);
-      }
+      // Fire-and-forget: in Expo Go, 10× Argon2id (m=19MiB, t=2) takes 1-4 min
+      // and would freeze the UI before the user reaches the dashboard. The
+      // codes still upload in the background; they can be re-issued from
+      // Settings if the user wants visible codes.
+      generateAndWrapRecoveryCodes(keyPair.privateKey, 10, kdf_algorithm)
+        .then((g) =>
+          uploadRecoveryCodes(g.payload).catch((e) =>
+            console.warn('Recovery code upload failed:', e)
+          )
+        )
+        .catch((e) => console.warn('Recovery code generation failed:', e));
     }
 
-    return { ...response.data, recoveryCodes };
+    return { ...response.data, recoveryCodes: [] };
   }
 
   /* ─── Login (with optional TOTP) ─── */
