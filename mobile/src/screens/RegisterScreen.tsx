@@ -41,7 +41,8 @@ const RegisterScreen: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [interval, setIntervalDays] = useState('30');
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -118,7 +119,6 @@ const RegisterScreen: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
         registration_ticket: registrationTicket,
         password,
         full_name: fullName.trim() || undefined,
-        checkin_interval_days: Number(interval) || 30,
       });
       if (result.recoveryCodes && result.recoveryCodes.length > 0) {
         setRecoveryCodes(result.recoveryCodes);
@@ -351,13 +351,27 @@ const RegisterScreen: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
               />
 
               <Label>Password</Label>
-              <Input
-                value={password}
-                onChangeText={setPassword}
-                placeholder="At least 8 characters"
-                secureTextEntry
-                autoFocus
-              />
+              <View style={styles.pwdWrap}>
+                <Input
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="At least 8 characters"
+                  secureTextEntry={!showPwd}
+                  autoFocus
+                  style={styles.pwdInput}
+                />
+                <Pressable
+                  onPress={() => setShowPwd((v) => !v)}
+                  style={styles.eyeBtn}
+                  hitSlop={8}
+                >
+                  <Feather
+                    name={showPwd ? 'eye-off' : 'eye'}
+                    size={16}
+                    color={colors.muted}
+                  />
+                </Pressable>
+              </View>
               {password.length > 0 && (
                 <View style={styles.hintRow}>
                   <Feather
@@ -377,12 +391,26 @@ const RegisterScreen: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
               )}
 
               <Label>Confirm password</Label>
-              <Input
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Repeat password"
-                secureTextEntry
-              />
+              <View style={styles.pwdWrap}>
+                <Input
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Repeat password"
+                  secureTextEntry={!showConfirm}
+                  style={styles.pwdInput}
+                />
+                <Pressable
+                  onPress={() => setShowConfirm((v) => !v)}
+                  style={styles.eyeBtn}
+                  hitSlop={8}
+                >
+                  <Feather
+                    name={showConfirm ? 'eye-off' : 'eye'}
+                    size={16}
+                    color={colors.muted}
+                  />
+                </Pressable>
+              </View>
               {confirmPassword.length > 0 && !passwordsMatch && (
                 <View style={styles.hintRow}>
                   <Feather name="x" size={12} color={colors.danger} />
@@ -391,13 +419,6 @@ const RegisterScreen: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
                   </Text>
                 </View>
               )}
-
-              <Label>Check-in interval (days)</Label>
-              <Input
-                value={interval}
-                onChangeText={setIntervalDays}
-                keyboardType="number-pad"
-              />
 
               <View style={{ height: spacing.xs }} />
               <Button
@@ -496,6 +517,23 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   hintText: { fontSize: 12, color: colors.muted },
+  pwdWrap: {
+    position: 'relative',
+    marginBottom: spacing.sm,
+  },
+  pwdInput: {
+    paddingRight: 40,
+    marginBottom: 0,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    bottom: 0,
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   iconCircle: {
     width: 48,
     height: 48,

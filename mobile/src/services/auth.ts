@@ -10,10 +10,6 @@ import {
   unwrapPrivateKeyWithMasterKey,
   wrapPrivateKeyWithMasterKey,
 } from './crypto';
-import {
-  generateAndWrapRecoveryCodes,
-  uploadRecoveryCodes,
-} from './recovery';
 import { clearBiometricKey } from './biometric';
 
 export interface LoginData {
@@ -81,20 +77,14 @@ class AuthService {
       await storage.setToken(response.data.token);
       await storage.setUser(response.data.user);
       setSessionKeys({ masterKey, privateKey: keyPair.privateKey });
-
-      // Fire-and-forget: in Expo Go, 10× Argon2id (m=19MiB, t=2) takes 1-4 min
-      // and would freeze the UI before the user reaches the dashboard. The
-      // codes still upload in the background; they can be re-issued from
-      // Settings if the user wants visible codes.
-      generateAndWrapRecoveryCodes(keyPair.privateKey, 10, kdf_algorithm)
-        .then((g) =>
-          uploadRecoveryCodes(g.payload).catch((e) =>
-            console.warn('Recovery code upload failed:', e)
-          )
-        )
-        .catch((e) => console.warn('Recovery code generation failed:', e));
     }
 
+    // Recovery codes are intentionally not generated on mobile.
+    // The web client uses WebCrypto and can run 10× Argon2id in ~500 ms,
+    // but on Expo Go the same work in pure JS pegs the JS thread for 1-4
+    // minutes — long enough that React never gets a chance to flush the
+    // navigation away from the register screen, even when fired without
+    // await. Account recovery on mobile relies on the email-reset flow.
     return { ...response.data, recoveryCodes: [] };
   }
 
